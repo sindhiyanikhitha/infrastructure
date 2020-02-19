@@ -25,5 +25,5 @@ if  aws cloudformation describe-stacks --stack-name $stack_name --profile $accou
 	 echo "Stack terminated "
 
 else
-		echo -e "Stack does not exist!"
+		echo -e "Stack does not exist"
 fi
