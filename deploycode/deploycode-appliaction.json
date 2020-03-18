@@ -1,18 +1,17 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Parameters": {
-    "vpcName": {
-      "Type":"String"
-    },
-    "vpcCidr" : {
-      "Type":"String"
-    },
-    "vpcIdUnique": {
-      "Type":"String"
+    "DeploymentGroupName": {
+      "Type": "String",
+      "Default": "csye6225-webapp-deployment"
     },
     "KeyPair": {
       "Default": "awskey",
       "Type": "String"
+    },
+    "EC2TagValue": {
+      "Type": "String",
+      "Default": "csye6225-EC2"
     },
     "pubSubnet1":{
       "Type":"String"
@@ -22,6 +21,10 @@
     },
     "pubSubnet2":{
       "Type":"String"
+    },
+    "EC2RefTagName": {
+      "Type": "String",
+      "Default": "Name"
     },
     "pubSubnet2CIDR" : {
       "Type":"String"
@@ -50,28 +53,43 @@
     "pvtSubnet3CIDR":{
       "Type":"String"
     },
+    "vpcName": {
+      "Type":"String"
+    },
+    "vpcCidr" : {
+      "Type":"String"
+    },
+    "vpcIdUnique": {
+      "Type":"String"
+    },
+    "AppName": {
+      "Type": "String",
+      "Default": "csye6225-webapp"
+    },
     "destinationCidrBlock" : {
       "Type":"String",
       "Default":"0.0.0.0/0"
     },
     "ImageID": {
-      "Default": "ami-066809fd265495ca4",
+      "Default": "ami-0999a7ac3d9f548e4",
       "Type": "String"
     },
-    "EC2VolumeSize":{
+    "EC2Size":{
       "Type":"String"
     },
-    "RDSVolumeSize":{
+    "RDSSize":{
       "Type":"String"
     },
-    "DBUsername": {
+    "dbUser": {
       "Default": "admin",
-      "Description": "Database Username",
+      "Description": "UserName of the database",
       "Type": "String"
     },
-    "DBPassword": {
+    "dbPassword": {
       "Default": "test1234",
-      "Description": "Database Password",
+      "Description": "Password of the database",
+      "Type": "String"
+    },"CodeDeployS3Bucket": {
       "Type": "String"
     }
   },
@@ -378,11 +396,11 @@
         "DBName": "cloud",
         "DBInstanceClass": "db.t3.micro",
         "DBInstanceIdentifier": "cloud",
-        "AllocatedStorage": {"Ref":"RDSVolumeSize"},
+        "AllocatedStorage": {"Ref":"RDSSize"},
         "Engine": "MySQL",
         "EngineVersion": "5.7.25",
-        "MasterUsername": {"Ref":"DBUsername"},
-        "MasterUserPassword": {"Ref":"DBPassword"},
+        "MasterUsername": {"Ref":"dbUser"},
+        "MasterUserPassword": {"Ref":"dbPassword"},
         "MultiAZ": "false",
         "DBSubnetGroupName": {
           "Ref": "DBSubnetGroup"
@@ -409,7 +427,7 @@
         "Path": "/",
         "Roles": [
           {
-            "Ref": "IAMRole"
+            "Ref": "CodeDeployEC2ServiceRole"
           }
         ]
       }
@@ -437,7 +455,7 @@
             "Ebs": {
               "VolumeType": "gp2",
               "DeleteOnTermination": true,
-              "VolumeSize": {"Ref":"EC2VolumeSize"}
+              "VolumeSize": {"Ref":"EC2Size"}
             }
           }
         ],
@@ -484,7 +502,7 @@
                     [
                       "echo export springdatasourceusername=",
                       {
-                        "Ref": "DBUsername"
+                        "Ref": "dbUser"
                       },
                       ">> /etc/profile.d/envars.sh"
                     ]
@@ -496,7 +514,7 @@
                     [
                       "echo export springdatasourcepassword=",
                       {
-                        "Ref": "DBPassword"
+                        "Ref": "dbPassword"
                       },
                       ">> /etc/profile.d/envars.sh"
                     ]
@@ -567,7 +585,301 @@
         }
       }
     },
-    "IAMPolicy": {
+    "CodeDeployServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "codedeploy.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+        ],
+        "Path": "/"
+      }
+    },
+    "CodeDeployApplication": {
+      "Type": "AWS::CodeDeploy::Application",
+      "Properties": {
+        "ComputePlatform": "Server",
+        "ApplicationName": {
+          "Ref": "AppName"
+        }
+      }
+    },
+    "DeploymentGroup": {
+      "Type": "AWS::CodeDeploy::DeploymentGroup",
+      "Properties": {
+        "ApplicationName": {
+          "Ref": "AppName"
+        },
+        "DeploymentGroupName": {
+          "Ref": "DeploymentGroupName"
+        },
+        "ServiceRoleArn": {
+          "Fn::GetAtt": [
+            "CodeDeployServiceRole",
+            "Arn"
+          ]
+        },
+        "DeploymentStyle": {
+          "DeploymentOption": "WITHOUT_TRAFFIC_CONTROL",
+          "DeploymentType": "IN_PLACE"
+        },
+        "DeploymentConfigName": "CodeDeployDefault.AllAtOnce",
+        "AutoRollbackConfiguration": {
+          "Enabled": true,
+          "Events": [
+            "DEPLOYMENT_FAILURE"
+          ]
+        },
+        "Ec2TagFilters": [
+          {
+            "Key": {
+              "Ref": "EC2RefTagName"
+            },
+            "Value": {
+              "Ref": "EC2TagValue"
+            },
+            "Type": "KEY_AND_VALUE"
+          }
+        ]
+      }
+    },
+    "CodeDeployEC2S3": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "CodeDeploy-EC2-S3",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetAccountPublicAccessBlock",
+                "s3:ListAllMyBuckets",
+                "s3:ListJobs"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:Get*",
+                "s3:List*"
+              ],
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      {
+                        "Ref": "CodeDeployS3Bucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      {
+                        "Ref": "CodeDeployS3Bucket"
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "CircleCIUploadToS3": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "CircleCI-Upload-To-S3",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject",
+                "s3:ListBucket"
+              ],
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      {
+                        "Ref": "CodeDeployS3Bucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      {
+                        "Ref": "CodeDeployS3Bucket"
+                      }
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "Users": [
+          "circleci"
+        ]
+      }
+    },
+    "CirlceCiCodeDeploy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "CirlceCI-Code-Deploy",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "codedeploy:RegisterApplicationRevision",
+                "codedeploy:GetApplicationRevision"
+              ],
+              "Resource": {
+                "Fn::Join": [
+                  ":",
+                  [
+                    "arn:aws:codedeploy",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    "application:csye6225-webapp"
+                  ]
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "codedeploy:CreateDeployment",
+                "codedeploy:GetDeployment"
+              ],
+              "Resource": [
+                "*"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "codedeploy:GetDeploymentConfig"
+              ],
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    ":",
+                    [
+                      "arn:aws:codedeploy",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      {
+                        "Ref": "AWS::AccountId"
+                      },
+                      "deploymentconfig",
+                      "CodeDeployDefault.AllAtOnce"
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "Users": [
+          "circleci"
+        ]
+      }
+    },
+    "CircleCiEc2Ami": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "circleci-ec2-ami",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ec2:AttachVolume",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CopyImage",
+                "ec2:CreateImage",
+                "ec2:CreateKeypair",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateSnapshot",
+                "ec2:CreateTags",
+                "ec2:CreateVolume",
+                "ec2:DeleteKeyPair",
+                "ec2:DeleteSecurityGroup",
+                "ec2:DeleteSnapshot",
+                "ec2:DeleteVolume",
+                "ec2:DeregisterImage",
+                "ec2:DescribeImageAttribute",
+                "ec2:DescribeImages",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceStatus",
+                "ec2:DescribeRegions",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSnapshots",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeTags",
+                "ec2:DescribeVolumes",
+                "ec2:DetachVolume",
+                "ec2:GetPasswordData",
+                "ec2:ModifyImageAttribute",
+                "ec2:ModifyInstanceAttribute",
+                "ec2:ModifySnapshotAttribute",
+                "ec2:RegisterImage",
+                "ec2:RunInstances",
+                "ec2:StopInstances",
+                "ec2:TerminateInstances"
+              ],
+              "Resource": "*"
+            }
+          ]
+        },
+        "Users": [
+          "circleci"
+        ]
+      }
+    },
+    "S3BucketAttachmentPolicy": {
       "Type": "AWS::IAM::Policy",
       "Properties": {
         "PolicyName": "WebAppS3",
@@ -590,12 +902,12 @@
         },
         "Roles": [
           {
-            "Ref": "IAMRole"
+            "Ref": "CodeDeployEC2ServiceRole"
           }
         ]
       }
     },
-    "IAMRole": {
+    "CodeDeployEC2ServiceRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -614,48 +926,53 @@
             }
           ]
         },
-        "RoleName": "EC2-CSYE6225"
+        "ManagedPolicyArns": [
+          {
+            "Ref": "CodeDeployEC2S3"
+          }
+        ],
+        "RoleName": "CodeDeployEC2ServiceRole"
       }
     }
   },
   "Outputs": {
     "VPC":{
-      "Description":"The VPC ID to use for EC2 instance",
+      "Description":"VPC ID",
       "Value":{"Ref":"MyVpc"},
       "Export":{ "Name" : {"Ref":"vpcName"}}
     },
     "PublicSubnet1":{
-      "Description":"The subnet ID to use for public web servers",
+      "Description":"The public subnet ID 1",
       "Value":{"Ref":"PublicSubnet1"},
       "Export":{ "Name" : {"Ref":"pubSubnet1"} }
     },
     "PublicSubnet2":{
-      "Description":"The subnet ID to use for public web servers",
+      "Description":"The public subnet ID 2",
       "Value":{"Ref":"PublicSubnet2"},
       "Export":{ "Name" :{"Ref":"pubSubnet2"} }
     },
     "PublicSubnet3":{
-      "Description":"The subnet ID to use for public web servers",
+      "Description":"The public subnet ID 3",
       "Value":{"Ref":"PublicSubnet3"},
       "Export":{ "Name" : {"Ref":"pubSubnet3"} }
     },
     "PrivateSubnet1":{
-      "Description":"The private subnet ID to use for RDS",
+      "Description":"The private subnet ID 1",
       "Value":{"Ref":"PrivateSubnet1"},
       "Export":{"Name":{"Ref":"pvtSubnet1"}}
     },
     "PrivateSubnet2":{
-      "Description":"The private subnet ID to use for RDS",
+      "Description":"The private subnet 2  ID ",
       "Value":{"Ref":"PrivateSubnet2"},
       "Export":{"Name":{"Ref":"pvtSubnet2"}}
     },
     "PrivateSubnet3":{
-      "Description":"The private subnet ID to use for RDS",
+      "Description":"The private subnet 3 ID ",
       "Value":{"Ref":"PrivateSubnet3"},
       "Export":{"Name":{"Ref":"pvtSubnet3"}}
     },
     "EC2Instance": {
-      "Description": "The EC2 instance for the application",
+      "Description": "The EC2 instance",
       "Value": {
         "Ref": "EC2Instance"
       },
@@ -664,7 +981,7 @@
       }
     },
     "RDSInstance": {
-      "Description": "The RDS instance for attachments",
+      "Description": "RDS instance to store data of the webapp",
       "Value": {
         "Ref": "RDSInstance"
       },
@@ -673,7 +990,7 @@
       }
     },
     "S3Bucket": {
-      "Description": "The S3 bucket to store attachments",
+      "Description": "S3 bucket to store files",
       "Value": {
         "Ref": "S3Bucket"
       },
