@@ -929,8 +929,10 @@
         "ManagedPolicyArns": [
           {
             "Ref": "CodeDeployEC2S3"
-          }
+          },
+          "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
         ],
+
         "RoleName": "CodeDeployEC2ServiceRole"
       }
     }
