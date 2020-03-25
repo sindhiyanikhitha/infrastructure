@@ -115,6 +115,14 @@ echo "Code Deploy Bucket Name "
 
 read CodeDeployS3Bucket
 
+echo "Hosted zone ID"
+
+read hostedZoneID
+
+echo "Domain Name"
+
+read domainName
+
 echo "***********************************************************"
 
 echo "Stack creation in process.................................."
@@ -147,6 +155,8 @@ ParameterKey=vpcIdUnique,ParameterValue=vpcId$stack_name \
 ParameterKey=dbUser,ParameterValue=$dbUser \
 ParameterKey=dbPassword,ParameterValue=$dbPassword \
 ParameterKey=CodeDeployS3Bucket,ParameterValue=$CodeDeployS3Bucket \
+ParameterKey=hostedZoneID,ParameterValue=$hostedZoneID \
+ParameterKey=domainName,ParameterValue=$domainName \
 --query [StackId] --output text)
 
 echo "###################################################################################################"
