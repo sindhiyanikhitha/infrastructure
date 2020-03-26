@@ -82,23 +82,23 @@
       "Default": "ami-0999a7ac3d9f548e4",
       "Type": "String"
     },
+    "dbUser": {
+      "Default": "admin",
+      "Description": "DBUseName",
+      "Type": "String"
+    },
+    "dbPassword": {
+      "Default": "test1234",
+      "Description": "DB Password",
+      "Type": "String"
+    },"CodeDeployS3Bucket": {
+      "Type": "String"
+    },
     "EC2Size":{
       "Type":"String"
     },
     "RDSSize":{
       "Type":"String"
-    },
-    "dbUser": {
-      "Default": "admin",
-      "Description": "Database Username",
-      "Type": "String"
-    },
-    "dbPassword": {
-      "Default": "test1234",
-      "Description": "Database Password",
-      "Type": "String"
-    },"CodeDeployS3Bucket": {
-      "Type": "String"
     }
   },
   "Resources": {
@@ -302,7 +302,7 @@
     "WebServerSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "Enable HTTP access via port 80, SSH access via port 22",
+        "GroupDescription": "Enable acces only via below ports",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
@@ -350,7 +350,7 @@
     "DbSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "Security tag for db",
+        "GroupDescription": "Security group for database",
         "GroupName": "database",
         "SecurityGroupIngress": [
           {
@@ -377,7 +377,7 @@
     "DBSubnetGroup": {
       "Type": "AWS::RDS::DBSubnetGroup",
       "Properties": {
-        "DBSubnetGroupDescription": "DB Subnet Group",
+        "DBSubnetGroupDescription": "DBSubnetGroup",
         "SubnetIds": [
           {
             "Ref":"PrivateSubnet1"
@@ -908,7 +908,7 @@
     "loadBalancerSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "Enable HTTP access via port 80, SSH access via port 22",
+        "GroupDescription": "Enable acces only via below ports",
         "SecurityGroupIngress": [
           {
             "IpProtocol": "tcp",
@@ -1019,7 +1019,7 @@
     "CPUAlarmHigh": {
       "Type": "AWS::CloudWatch::Alarm",
       "Properties": {
-        "AlarmDescription": "Scale-up if CPU > 10% for 10 minutes",
+        "AlarmDescription": "Scaleup EC2 if CPU usage is greater than 10% for 10 minutes",
         "MetricName": "CPUUtilization",
         "Namespace": "AWS/EC2",
         "Statistic": "Average",
@@ -1046,7 +1046,7 @@
     "CPUAlarmLow": {
       "Type": "AWS::CloudWatch::Alarm",
       "Properties": {
-        "AlarmDescription": "Scale-down if CPU < 5% for 10 minutes",
+        "AlarmDescription": "Scaledown if CPU usage is greater than 5% for 10 minutes",
         "MetricName": "CPUUtilization",
         "Namespace": "AWS/EC2",
         "Statistic": "Average",
@@ -1182,49 +1182,49 @@
   },
   "Outputs": {
     "VPC":{
-      "Description":"The VPC ID to use for EC2 instance",
+      "Description":"The VPC ID",
       "Value":{"Ref":"MyVpc"},
       "Export":{ "Name" : {"Ref":"vpcName"}}
     },
     "PublicSubnet1":{
-      "Description":"The subnet ID to use for public web servers",
+      "Description":"The public subnet ID ",
       "Value":{"Ref":"PublicSubnet1"},
       "Export":{ "Name" : {"Ref":"pubSubnet1"} }
     },
     "PublicSubnet2":{
-      "Description":"The subnet ID to use for public web servers",
+      "Description":"The public subnet ID",
       "Value":{"Ref":"PublicSubnet2"},
       "Export":{ "Name" :{"Ref":"pubSubnet2"} }
     },
     "PublicSubnet3":{
-      "Description":"The subnet ID to use for public web servers",
+      "Description":"The public subnet ID ",
       "Value":{"Ref":"PublicSubnet3"},
       "Export":{ "Name" : {"Ref":"pubSubnet3"} }
     },
     "PrivateSubnet1":{
-      "Description":"The private subnet ID to use for RDS",
+      "Description":"The private subnet ID ",
       "Value":{"Ref":"PrivateSubnet1"},
       "Export":{"Name":{"Ref":"pvtSubnet1"}}
     },
     "PrivateSubnet2":{
-      "Description":"The private subnet ID to use for RDS",
+      "Description":"The private subnet ID",
       "Value":{"Ref":"PrivateSubnet2"},
       "Export":{"Name":{"Ref":"pvtSubnet2"}}
     },
     "PrivateSubnet3":{
-      "Description":"The private subnet ID to use for RDS",
+      "Description":"The private subnet ID",
       "Value":{"Ref":"PrivateSubnet3"},
       "Export":{"Name":{"Ref":"pvtSubnet3"}}
     },
     "loadBalancer" : {
-      "Description" : "Application LoadBalancer",
+      "Description" : "LoadBalancer",
       "Value" : {"Ref" : "ApplicationLoadBalancer"},
       "Export" : {
         "Name" : "csye6225-load-balancer"
       }
     },
     "RDSInstance": {
-      "Description": "The RDS instance for attachments",
+      "Description": "RDSInstance",
       "Value": {
         "Ref": "RDSInstance"
       },
@@ -1233,7 +1233,7 @@
       }
     },
     "S3Bucket": {
-      "Description": "The S3 bucket to store attachments",
+      "Description": "S3Bucket",
       "Value": {
         "Ref": "S3Bucket"
       },
