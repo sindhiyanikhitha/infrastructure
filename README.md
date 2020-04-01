@@ -8,7 +8,7 @@
  	<li>The cloudFormation template for network stack</li>
  </ul>
 
-## "create.sh" script will
+## "create.sh" script 
 <ul>
   <li>Create a cloudformation stack taking STACK_NAME as parameter</li>
 	<li>Create and configure required networking resources</li>
