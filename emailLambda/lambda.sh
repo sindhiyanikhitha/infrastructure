@@ -123,6 +123,10 @@ echo "Domain Name"
 
 read domainName
 
+echo "Certificate ARN"
+
+read certificateARN
+
 echo "***********************************************************"
 
 echo "Stack creation in process.................................."
@@ -156,6 +160,7 @@ ParameterKey=dbUser,ParameterValue=$dbUser \
 ParameterKey=dbPassword,ParameterValue=$dbPassword \
 ParameterKey=CodeDeployS3Bucket,ParameterValue=$CodeDeployS3Bucket \
 ParameterKey=hostedZoneID,ParameterValue=$hostedZoneID \
+ParameterKey=certificateARN,ParameterValue=$certificateARN \
 ParameterKey=domainName,ParameterValue=$domainName \
 --query [StackId] --output text)
 

@@ -102,6 +102,9 @@
     "EC2Size": {
       "Type": "String"
     },
+    "certificateARN": {
+      "Type": "String"
+    },
     "RDSSize": {
       "Type": "String"
     }
@@ -527,12 +530,45 @@
         ]
       }
     },
+    "MyKey": {
+      "Type": "AWS::KMS::Key",
+      "Properties": {
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Id": "key-default-1",
+          "Statement": [
+            {
+              "Sid": "Enable IAM User Permissions",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:iam::",
+                      {
+                        "Ref": "AWS::AccountId"
+                      },
+                      ":root"
+                    ]
+                  ]
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
     "RDSInstance": {
       "Type": "AWS::RDS::DBInstance",
       "Properties": {
         "DBName": "cloud",
         "DBInstanceClass": "db.t3.micro",
         "DBInstanceIdentifier": "cloud",
+        "StorageEncrypted": true,
+        "KmsKeyId": {"Ref": "MyKey"},
         "AllocatedStorage": {
           "Ref": "RDSSize"
         },
@@ -1333,6 +1369,33 @@
       "Properties": {
         "DefaultActions": [
           {
+            "Type": "redirect",
+            "RedirectConfig": {
+              "Port": 443,
+              "Protocol": "HTTPS",
+              "StatusCode": "HTTP_301"
+            }
+          }
+        ],
+        "LoadBalancerArn": {
+          "Ref": "ApplicationLoadBalancer"
+        },
+        "Port": 8080,
+        "Protocol": "HTTP"
+      }
+    },
+    "HttpsListener": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "Certificates": [
+          {
+            "CertificateArn": {
+              "Ref": "certificateARN"
+            }
+          }
+        ],
+        "DefaultActions": [
+          {
             "Type": "forward",
             "TargetGroupArn": {
               "Ref": "ALBTargetGroup"
@@ -1342,8 +1405,8 @@
         "LoadBalancerArn": {
           "Ref": "ApplicationLoadBalancer"
         },
-        "Port": 80,
-        "Protocol": "HTTP"
+        "Port": 443,
+        "Protocol": "HTTPS"
       }
     },
     "CircleCIUpdateLambda": {
@@ -1731,13 +1794,13 @@
       }
     },
     "QueueURL": {
-      "Description": "URL of new Amazon SQS Queue",
+      "Description": "URL SQS Queue",
       "Value": {
         "Ref": "MySQSQueue"
       }
     },
     "QueueARN": {
-      "Description": "ARN of new Amazon SQS Queue",
+      "Description": "ARN-SQS Queue",
       "Value": {
         "Fn::GetAtt": [
           "MySQSQueue",
@@ -1746,7 +1809,7 @@
       }
     },
     "QueueName": {
-      "Description": "Name new Amazon SQS Queue",
+      "Description": "Amazon SQS Queue",
       "Value": {
         "Fn::GetAtt": [
           "MySQSQueue",
