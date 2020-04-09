@@ -466,12 +466,6 @@
             "FromPort": "80",
             "ToPort": "80",
             "CidrIp": "0.0.0.0/0"
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "22",
-            "ToPort": "22",
-            "CidrIp": "0.0.0.0/0"
           }
         ],
         "VpcId": {
@@ -530,35 +524,30 @@
         ]
       }
     },
-    "MyKey": {
-      "Type": "AWS::KMS::Key",
+    "RDSDBParameterGroup": {
+      "Type": "AWS::RDS::DBParameterGroup",
       "Properties": {
-        "KeyPolicy": {
-          "Version": "2012-10-17",
-          "Id": "key-default-1",
-          "Statement": [
-            {
-              "Sid": "Enable IAM User Permissions",
-              "Effect": "Allow",
-              "Principal": {
-                "AWS": {
-                  "Fn::Join": [
-                    "",
-                    [
-                      "arn:aws:iam::",
-                      {
-                        "Ref": "AWS::AccountId"
-                      },
-                      ":root"
-                    ]
-                  ]
-                }
-              },
-              "Action": "kms:*",
-              "Resource": "*"
+        "Description": "RDS Parameter Group",
+        "Family": "mysql5.7",
+        "Parameters": {
+          "performance_schema": "1"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "RDSDBParameterGroup"
+                ]
+              ]
             }
-          ]
-        }
+          }
+        ]
       }
     },
     "RDSInstance": {
@@ -568,9 +557,11 @@
         "DBInstanceClass": "db.t3.micro",
         "DBInstanceIdentifier": "cloud",
         "StorageEncrypted": true,
-        "KmsKeyId": {"Ref": "MyKey"},
         "AllocatedStorage": {
           "Ref": "RDSSize"
+        },
+        "DBParameterGroupName": {
+          "Ref": "RDSDBParameterGroup"
         },
         "Engine": "MySQL",
         "EngineVersion": "5.7.25",
@@ -1369,33 +1360,6 @@
       "Properties": {
         "DefaultActions": [
           {
-            "Type": "redirect",
-            "RedirectConfig": {
-              "Port": 443,
-              "Protocol": "HTTPS",
-              "StatusCode": "HTTP_301"
-            }
-          }
-        ],
-        "LoadBalancerArn": {
-          "Ref": "ApplicationLoadBalancer"
-        },
-        "Port": 8080,
-        "Protocol": "HTTP"
-      }
-    },
-    "HttpsListener": {
-      "Type": "AWS::ElasticLoadBalancingV2::Listener",
-      "Properties": {
-        "Certificates": [
-          {
-            "CertificateArn": {
-              "Ref": "certificateARN"
-            }
-          }
-        ],
-        "DefaultActions": [
-          {
             "Type": "forward",
             "TargetGroupArn": {
               "Ref": "ALBTargetGroup"
@@ -1406,7 +1370,12 @@
           "Ref": "ApplicationLoadBalancer"
         },
         "Port": 443,
-        "Protocol": "HTTPS"
+        "Protocol": "HTTPS",
+        "Certificates": [{
+          "CertificateArn":{
+            "Ref":"certificateARN"
+          }
+        }]
       }
     },
     "CircleCIUpdateLambda": {
