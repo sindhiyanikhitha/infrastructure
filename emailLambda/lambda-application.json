@@ -102,6 +102,9 @@
     "EC2Size": {
       "Type": "String"
     },
+    "certificateARN": {
+      "Type": "String"
+    },
     "RDSSize": {
       "Type": "String"
     }
@@ -463,12 +466,6 @@
             "FromPort": "80",
             "ToPort": "80",
             "CidrIp": "0.0.0.0/0"
-          },
-          {
-            "IpProtocol": "tcp",
-            "FromPort": "22",
-            "ToPort": "22",
-            "CidrIp": "0.0.0.0/0"
           }
         ],
         "VpcId": {
@@ -527,14 +524,44 @@
         ]
       }
     },
+    "RDSDBParameterGroup": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "RDS Parameter Group",
+        "Family": "mysql5.7",
+        "Parameters": {
+          "performance_schema": "1"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "RDSDBParameterGroup"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
     "RDSInstance": {
       "Type": "AWS::RDS::DBInstance",
       "Properties": {
         "DBName": "cloud",
         "DBInstanceClass": "db.t3.micro",
         "DBInstanceIdentifier": "cloud",
+        "StorageEncrypted": true,
         "AllocatedStorage": {
           "Ref": "RDSSize"
+        },
+        "DBParameterGroupName": {
+          "Ref": "RDSDBParameterGroup"
         },
         "Engine": "MySQL",
         "EngineVersion": "5.7.25",
@@ -1342,8 +1369,13 @@
         "LoadBalancerArn": {
           "Ref": "ApplicationLoadBalancer"
         },
-        "Port": 80,
-        "Protocol": "HTTP"
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "Certificates": [{
+          "CertificateArn":{
+            "Ref":"certificateARN"
+          }
+        }]
       }
     },
     "CircleCIUpdateLambda": {
@@ -1731,13 +1763,13 @@
       }
     },
     "QueueURL": {
-      "Description": "URL of new Amazon SQS Queue",
+      "Description": "URL SQS Queue",
       "Value": {
         "Ref": "MySQSQueue"
       }
     },
     "QueueARN": {
-      "Description": "ARN of new Amazon SQS Queue",
+      "Description": "ARN-SQS Queue",
       "Value": {
         "Fn::GetAtt": [
           "MySQSQueue",
@@ -1746,7 +1778,7 @@
       }
     },
     "QueueName": {
-      "Description": "Name new Amazon SQS Queue",
+      "Description": "Amazon SQS Queue",
       "Value": {
         "Fn::GetAtt": [
           "MySQSQueue",
